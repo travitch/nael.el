@@ -22,6 +22,7 @@
 ;;; Code:
 
 (require 'eglot)
+(require 'treesit)
 
 (require 'nael)
 
@@ -41,13 +42,31 @@
   "Name of buffer that is reused in order to fontify Nael code.")
 
 (defun nael-eglot-eldoc-fontify (string)
-  "Apply Nael font-lock rules to STRING."
+  "Apply Nael font-lock rules to STRING.
+
+A goal is not a whole Lean module, so most of it ends up inside an
+ERROR node of the parse tree.  The font-lock queries still match
+within such a node, which suffices to highlight the terms that a goal
+is made of."
   (with-current-buffer
       (get-buffer-create nael-eglot-eldoc-fontify-buffer)
     (erase-buffer)
     (insert string)
-    (setq-local font-lock-defaults nael-font-lock-defaults)
-    (font-lock-ensure)
+    ;; Query the grammar quietly: unlike `nael-grammar-ready-p', this
+    ;; neither offers to install it nor warns about it, which would be
+    ;; inappropriate in an ElDoc callback.
+    (when (treesit-ready-p 'lean t)
+      (setq-local treesit-primary-parser
+                  (treesit-parser-create 'lean))
+      ;; Copy the settings because the recomputation below writes the
+      ;; enablement of each feature into them, while `nael-mode'
+      ;; buffers share those of `nael--font-lock-settings'.
+      (setq-local treesit-font-lock-settings
+                  (mapcar #'copy-sequence nael--font-lock-settings))
+      (setq-local treesit-font-lock-feature-list
+                  nael-font-lock-feature-list)
+      (treesit-font-lock-recompute-features)
+      (treesit-font-lock-fontify-region (point-min) (point-max)))
     (buffer-string)))
 
 (defun nael-eglot-eldoc-goal-fn (cb get)
