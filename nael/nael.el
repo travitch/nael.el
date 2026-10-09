@@ -87,20 +87,20 @@
 
 ;;;; Grammar:
 
-(defcustom nael-grammar-recipe
-  '(lean "https://github.com/Julian/tree-sitter-lean"
-         :commit "916c44f4d89c970f66dd34a49e7ce848f4d29e72")
-  "Recipe for installing the Lean tree-sitter grammar.
+;; (defcustom nael-grammar-recipe
+;;   '(lean "https://github.com/Julian/tree-sitter-lean"
+;;          :commit "916c44f4d89c970f66dd34a49e7ce848f4d29e72")
+;;   "Recipe for installing the Lean tree-sitter grammar.
 
-Nael appends this to `treesit-language-source-alist', so an entry you
-have added there yourself takes precedence.  The revision is pinned on
-purpose: tree-sitter grammars rename and restructure nodes between
-releases, which silently breaks the font-lock and indentation queries
-below.  See `treesit-language-source-alist' for the format."
-  :type '(cons symbol (plist :value-type string))
-  :group 'nael)
+;; Nael appends this to `treesit-language-source-alist', so an entry you
+;; have added there yourself takes precedence.  The revision is pinned on
+;; purpose: tree-sitter grammars rename and restructure nodes between
+;; releases, which silently breaks the font-lock and indentation queries
+;; below.  See `treesit-language-source-alist' for the format."
+;;   :type '(cons symbol (plist :value-type string))
+;;   :group 'nael)
 
-(add-to-list 'treesit-language-source-alist nael-grammar-recipe t)
+;; (add-to-list 'treesit-language-source-alist nael-grammar-recipe t)
 
 (defconst nael--grammar-probe
   (concat
