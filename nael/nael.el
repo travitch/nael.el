@@ -109,12 +109,23 @@
    ;; Lean 4 module system, added in tree-sitter-lean 0.2.
    "(moduleTk) (public_section) "
    ;; Indentation-sensitive blocks, which rely on the external scanner.
-   "(where_decls) (do_block) (interpolation)")
+   "(where_decls) (do_block) (interpolation) "
+   ;; Generic tactic shapes, added in tree-sitter-lean 0.3, which
+   ;; replaced the enumerated tactic nodes and tokens.
+   "(tactic name: (identifier)) (tactic_alt) (tactic_focus) "
+   ;; Runs of postfix modifier letters, likewise folded into one node.
+   "(modifier_op) "
+   ;; Open-ended `#'-commands, which replaced the enumerated ones.
+   "(hash_cmd_name)")
   "Query exercising grammar features that Nael's queries depend upon.
 
 Compiling it is a cheap way to tell a compatible grammar from an
 incompatible one, which otherwise manifests as font-lock and
-indentation quietly doing nothing.")
+indentation quietly doing nothing.
+
+Every node and field named here is one that a past release of the
+grammar spelled differently.  Add to it whenever a renaming is found,
+since a probe that does not exercise a construct cannot report it.")
 
 (defun nael-grammar-ready-p ()
   "Return non-nil when a usable Lean tree-sitter grammar is installed.
@@ -221,28 +232,37 @@ for `syntax-ppss', paragraph filling, `comment-dwim' and friends.")
 
 (defconst nael--keywords
   '("abbrev" "add_decl_doc" "alias" "assert_exists"
-    "assert_not_exists" "assert_not_imported" "attribute" "axiom"
-    "behavior" "builtin_initialize" "by" "by_cases" "case" "cases"
-    "check_assertions" "class" "constant" "declare_syntax_cat" "def"
-    "deriving" "do" "elab_rules" "else" "end" "example" "exists"
-    "export" "extends" "for" "forall" "from" "fun" "generalizing"
-    "grind_pattern" "have" "haveI" "if" "import" "in" "induction"
-    "inductive" "infix" "infixl" "infixr" "initialize"
+    "assert_not_exists" "assert_not_imported" "at" "attribute" "axiom"
+    "behavior" "bif" "builtin_initialize" "by" "calc"
+    "check_assertions" "class" "coinductive_fixpoint" "constant"
+    "declare_syntax_cat" "decreasing_by" "def" "deriving" "do"
+    "elab_rules" "else" "end" "example" "exists" "export" "extends"
+    "for" "forall" "from" "fun" "generalizing" "grind_pattern" "have"
+    "haveI" "if" "imax" "import" "in" "inductive" "inductive_fixpoint"
+    "infix" "infixl" "infixr" "initialize"
     "initialize_simps_projections" "instance" "lemma" "let" "letI"
-    "library_note" "local" "macro" "macro_rules" "match" "mut" "name"
-    "namespace" "noncomputable" "nonrec" "notation" "obtain" "opaque"
-    "open" "partial" "postfix" "prefix" "priority" "private"
-    "protected" "rec" "recommended_spelling" "register_builtin_option"
-    "register_error_explanation" "register_option" "scoped" "section"
-    "set" "set_option" "show" "structure" "suffices" "syntax" "then"
-    "theorem" "to_dual_insert_cast" "to_dual_insert_cast_fun"
-    "unif_hint" "universe" "universes" "unsafe" "using" "variable"
-    "where" "with" "Π" "Σ" "Σ'" "λ" "∀" "∀ᵐ" "∃" "∃ᵐ" "∏" "∐" "∑" "∫"
-    "∫⁻" "⋀" "⋁" "⋂" "⋃" "⨁" "⨂" "⨅" "⨆" "⨍")
+    "library_note" "local" "macro" "macro_rules" "match" "max"
+    "monotonicity" "mut" "name" "namespace" "noncomputable" "nonrec"
+    "notation" "only" "opaque" "open" "partial" "partial_fixpoint"
+    "postfix" "prefix" "priority" "private" "protected" "rec"
+    "recommended_spelling" "register_builtin_option"
+    "register_error_explanation" "register_option" "says" "scoped"
+    "section" "set_option" "show" "structural" "structure" "suffices"
+    "syntax" "termination_by" "termination_by?" "then" "theorem"
+    "to_dual_insert_cast" "to_dual_insert_cast_fun" "unif_hint"
+    "universe" "universes" "unsafe" "using" "variable" "where" "with"
+    "Π" "Σ" "Σ'" "λ" "∀" "∀ᵐ" "∃" "∃!" "∃ᵐ" "∏" "∏'" "∐" "∑" "∑'"
+    "∫" "∫⁻" "⋀" "⋁" "⋂" "⋃" "⨁" "⨂" "⨅" "⨆" "⨍")
   "Keyword tokens of the Lean tree-sitter grammar.
 
 This includes binder heads such as `∀' and the big-operator notations,
-which Lean spells as prefix keywords rather than operators.")
+which Lean spells as prefix keywords rather than operators.
+
+Tactic names are deliberately absent: the grammar does not enumerate
+Lean's tactic vocabulary, so `cases', `induction' and the rest arrive as
+the `name' field of a `tactic' node, not as keyword tokens.  The clause
+words they take — `at', `only', `says', `using' — are tokens and do
+appear here.")
 
 (defconst nael--directives
   '("#check" "#check_failure" "#eval" "#exit" "#print"
@@ -250,26 +270,35 @@ which Lean spells as prefix keywords rather than operators.")
   "Tokens of the Lean tree-sitter grammar that start a `#'-command.")
 
 (defconst nael--operators
-  '("!" "!=" "#" "$" "%" "&" "&&" "&&&" "''" "*" "+" "++" "+ᵥ" ",*"
-    ",+" ",?" "-" "->" "-ᵥ" "/" "//" ":" "::" "::ᵣ" "::ₘ" ":=" "<"
-    "<$>" "<&&>" "<&>" "<*>" "<-" "<->" "<;>" "<<" "<<<" "<=" "<|"
-    "<|>" "<||>" "=" "=<<" "==" "=>" ">" ">=" ">>" ">>=" ">>>" "?" "@"
-    "@&" "\\" "^" "^^^" "|>" "||" "|||" "~" "¬" "×" "×'" "×ˢ" "×ₗ" "ˣ"
-    "ᵀ" "ᵐᵒᵖ" "ᵒᵈ" "ᵒᵖ" "ᶜ" "†" "•" "⁺" "⁻¹" "⁻¹'" "←" "↑" "→" "→*"
-    "→+" "→+*" "→ᵃ" "→ₐ" "→ₑ" "→ₑ*" "→ₑ+" "→ₒ" "→ₗ" "→ₙ*" "→ₙ+"
-    "→ₙ+*" "↓" "↔" "↠" "↥" "↦" "↪" "↪*" "↪+" "↪+*" "↪o" "↾" "⇑" "⇒"
-    "⇔" "⇨" "∂" "∆" "∈" "∉" "∗" "∘" "∘ₗ" "∙" "∣" "∤" "∧" "∨" "∩" "∪"
-    "≃" "≃*" "≃+" "≃+*" "≃ᵃ" "≃ᵤ" "≃ₐ" "≃ₒ" "≃ₗ" "≃ₘ" "≅" "≈" "≉" "≌"
-    "≍" "≠" "≡" "≢" "≤" "≥" "≪≫" "≫" "≺" "≼" "⊂" "⊃" "⊆" "⊇" "⊑" "⊒"
-    "⊓" "⊔" "⊕" "⊕ₗ" "⊗" "⊗ₖ" "⊗ₛ" "⊗ₜ" "⊙" "⊚" "⊛" "⊞" "⊠" "⊣" "⊨"
-    "⊻" "⊼" "⋆" "⋖" "⋗" "⋙" "▸" "◁" "◫" "✝" "⟶" "⟹" "⥤" "⨯" "⬝" "⬝ᵥ"
-    "￢")
-  "Operator tokens of the Lean tree-sitter grammar.")
+  '("!" "!=" "#" "$" "%" "&" "&&" "&&&" "''" "*" "*..." "*...*" "*...<"
+    "*...=" "*>" "+" "++" "+ᵥ" ",*" ",+" ",?" "-" "->" "-ᵥ"
+    "...*" "...<" "...=" "/" "//" ":" "::" "::ᵣ" "::ₘ" ":=" "<" "<$>"
+    "<&&>" "<&>" "<*" "<*>" "<-" "<->" "<..." "<...*" "<...<" "<...="
+    "<;>" "<<" "<<<" "<=" "<|" "<|>" "<||>" "=" "=/=" "=<<" "==" "=>"
+    ">" ">=" ">>" ">>=" ">>>" "?" "@" "@&" "\\" "^" "^^" "^^^" "|>"
+    "||" "|||" "~" "~~~" "¬" "×" "×'" "×ˢ" "×ₗ" "†" "•" "⁺" "⁻¹" "⁻¹'"
+    "←" "↑" "→" "→*" "→+" "→+*" "→ᵃ" "→ₐ" "→ₑ" "→ₑ*" "→ₑ+" "→ₒ" "→ₗ"
+    "→ₙ*" "→ₙ+" "→ₙ+*" "↓" "↔" "↠" "↥" "↦" "↪" "↪*" "↪+" "↪+*" "↪o"
+    "↾" "⇐" "⇑" "⇒" "⇔" "⇨" "∂" "∆" "∈" "∈ˢ" "∉" "∗" "∘" "∘ₗ" "∙" "∣"
+    "∤" "∧" "∨" "∩" "∪" "≃" "≃*" "≃+" "≃+*" "≃ᵃ" "≃ᵤ" "≃ₐ" "≃ₒ" "≃ₗ"
+    "≃ₘ" "≅" "≈" "≉" "≌" "≍" "≠" "≡" "≢" "≤" "≥" "≪≫" "≫" "≺" "≼" "⊂"
+    "⊃" "⊆" "⊆ˢ" "⊇" "⊑" "⊒" "⊓" "⊔" "⊕" "⊕ₗ" "⊗" "⊗ₖ" "⊗ₛ" "⊗ₜ" "⊙"
+    "⊚" "⊛" "⊞" "⊠" "⊣" "⊨" "⊻" "⊼" "⋆" "⋖" "⋗" "⋙" "▸" "◁" "◫" "✝"
+    "⟶" "⟹" "⥤" "⨯" "⬝" "⬝ᵥ" "￢")
+  "Operator tokens of the Lean tree-sitter grammar.
+
+The postfix modifier letters — `ᶜ' for complement, `ᵒᵖ' for an opposite
+category, and so on — are not tokens.  The grammar lexes a run of them
+as one `modifier_op' node, since Lean's own token table is what decides
+where such a run splits; see the `operator' font-lock feature.")
 
 (defconst nael--brackets
-  '("#[" "(" ")" ".{" "@[" "[" "]" "{" "{{" "}" "}}" "‹" "›" "⌈" "⌉"
-    "⌉₊" "⌊" "⌋" "⌋₊" "⟦" "⟧" "⟨" "⟩" "⟪" "⟫" "⦃" "⦄")
-  "Bracket tokens of the Lean tree-sitter grammar.")
+  '("#[" "(" ")" ".{" "@[" "[" "]" "`" "``" "{" "{{" "}" "}}" "‹" "›"
+    "⌈" "⌉" "⌉₊" "⌊" "⌋" "⌋₊" "⟦" "⟧" "⟨" "⟩" "⟪" "⟫" "⦃" "⦄")
+  "Bracket tokens of the Lean tree-sitter grammar.
+
+The backticks open a name literal or a syntax quotation, which is what
+makes them brackets rather than operators.")
 
 (defconst nael--delimiters
   '("," "." "..." ";" "|")
@@ -291,7 +320,7 @@ additionally carries attributes and modifiers.")
   "Regular expression matching indentation-delimited block nodes.")
 
 (defconst nael--wrapper-regexp
-  (rx bos (or "open" "set_option") eos)
+  (rx bos (or "hash_cmd" "open" "set_option" "variable") eos)
   "Regular expression matching commands that take another command as body.
 
 These are the `in' forms, as in `set_option … in' and `open … in', whose
@@ -299,25 +328,30 @@ body is a command in its own right and stays in the column of the
 command that qualifies it:
 
   set_option maxHeartbeats 1000000 in
-  theorem foo : True := trivial")
+  theorem foo : True := trivial
+
+`variable … in' and `#guard_msgs … in' (any `hash_cmd') take a body the
+same way.")
 
 (defconst nael--where-regexp
   (rx bos (or "where_struct" "where_decls") eos)
   "Regular expression matching `where'-clause nodes.")
 
 (defconst nael--bracket-node-regexp
-  (rx bos (or "anon_ctor" "anon_ctor_binder" "anon_subterm" "array_lit"
-              "attributes" "ceil_lit" "dbl_angle_lit" "explicit_binder"
-              "floor_lit" "implicit_binder" "instance_binder"
-              "interpolation" "list_lit" "norm_lit" "paren"
-              "quotation" "quotient_lit" "range_lit" "set_builder"
-              "strict_implicit_binder" "struct_lit" "subtype_lit"
-              "tuple_binder")
+  (rx bos (or "abs" "anon_ctor" "anon_ctor_binder" "anon_subterm"
+              "array_lit" "attributes" "ceil_lit" "dbl_angle_lit"
+              "explicit_binder" "floor_lit" "implicit_binder"
+              "instance_binder" "interpolation" "list_lit" "norm_lit"
+              "paren" "quotation" "quotient_lit" "range_lit"
+              "set_builder" "strict_implicit_binder" "struct_lit"
+              "subscript" "subtype_lit" "tactic_paren" "tuple_binder")
       eos)
   "Regular expression matching nodes delimited by a pair of brackets.")
 
 (defconst nael--continuation-regexp
-  (rx bos (or "app" "binary_op" "unary_op") eos)
+  (rx bos (or "app" "binary_op" "postfix_op" "range"
+              "tactic_combinator" "unary_op")
+      eos)
   "Regular expression matching nodes that may continue onto a new line.")
 
 (defconst nael--closer-regexp
@@ -382,7 +416,7 @@ character, which is all `node-is' ever looks at.")
      (anon_ctor_binder (identifier) @font-lock-variable-name-face)
      (binders (identifier) @font-lock-variable-name-face)
      (block_assign name: (identifier) @font-lock-variable-name-face)
-     (by_cases name: (identifier) @font-lock-variable-name-face)
+     (config_flag name: (identifier) @font-lock-variable-name-face)
      (explicit_binder name: (identifier)
                       @font-lock-variable-name-face)
      (have name: (identifier) @font-lock-variable-name-face)
@@ -397,10 +431,7 @@ character, which is all `node-is' ever looks at.")
                              @font-lock-variable-name-face)
      (suffices name: (identifier) @font-lock-variable-name-face)
      (tuple_binder (identifier) @font-lock-variable-name-face)
-     (universe name: (identifier) @font-lock-variable-name-face)
-
-     ;; Goals selected by the `case' tactic.
-     (tactic_case name: (identifier) @font-lock-constant-face))
+     (universe name: (identifier) @font-lock-variable-name-face))
 
    :language 'lean
    :feature 'keyword
@@ -422,6 +453,9 @@ character, which is all `node-is' ever looks at.")
    :language 'lean
    :feature 'preprocessor
    `([,@nael--directives] @font-lock-preprocessor-face
+     ;; Lean's `#'-command namespace is open, so the grammar matches any
+     ;; `#foo' as one `hash_cmd_name' token rather than enumerating them.
+     (hash_cmd_name) @font-lock-preprocessor-face
      (attributes name: (identifier) @font-lock-preprocessor-face)
      (attribute_cmd name: (identifier) @font-lock-preprocessor-face))
 
@@ -497,8 +531,11 @@ character, which is all `node-is' ever looks at.")
      (export only: (identifier) @font-lock-function-call-face)
      (grind_pattern_cmd name: (identifier)
                         @font-lock-function-call-face)
-     (induction elim: (identifier) @font-lock-function-call-face)
-     (open only: (identifier) @font-lock-function-call-face))
+     (open only: (identifier) @font-lock-function-call-face)
+     ;; Tactic heads: `simp', `omega', `exact?'.  The grammar does not
+     ;; enumerate them, so they arrive as a `name' field rather than as
+     ;; keyword tokens.
+     (tactic name: (identifier) @font-lock-function-call-face))
 
    :language 'lean
    :feature 'property
@@ -511,7 +548,9 @@ character, which is all `node-is' ever looks at.")
 
    :language 'lean
    :feature 'operator
-   `([,@nael--operators] @font-lock-operator-face)
+   ;; `modifier_op' is a node rather than a token: see `nael--operators'.
+   `([,@nael--operators] @font-lock-operator-face
+     (modifier_op) @font-lock-operator-face)
 
    :language 'lean
    :feature 'bracket
@@ -580,6 +619,16 @@ is significant, so guessing wrong changes what the code means."
   "Return non-nil if NODE continues the signature of declaration PARENT."
   (and (equal (treesit-node-field-name node) "type")
        (string-match-p nael--declaration-regexp
+                       (or (treesit-node-type parent) ""))))
+
+(defun nael--indent-wrapper-body-p (node parent &rest _)
+  "Return non-nil if NODE is the command qualified by an `in' form PARENT.
+
+Only the `body' field counts.  The other children of such a command are
+its own arguments — the term of a `#'-command, the value of a
+`set_option' — and have no business in the qualifier's column."
+  (and (equal (treesit-node-field-name node) "body")
+       (string-match-p nael--wrapper-regexp
                        (or (treesit-node-type parent) ""))))
 
 (defun nael--indent-text-p (node parent bol &rest _)
@@ -681,9 +730,10 @@ line instead, one step further if that line ends in an opening token."
         indent))))
 
 (defconst nael--statement-parent-regexp
-  (rx bos (or "app" "by" "declaration" "do_block" "match" "match_alt"
-              "module" "struct_lit" "tactic_case" "where_decls"
-              "where_struct")
+  (rx bos (or "app" "by" "calc" "declaration" "decreasing_by"
+              "do_block" "match" "match_alt" "module" "struct_lit"
+              "tactic" "tactic_alt" "tactic_focus" "tactic_paren"
+              "where_decls" "where_struct")
       eos)
   "Regular expression matching nodes whose children can begin a statement.
 
@@ -692,13 +742,17 @@ new — a command, a structure field, a tactic — rather than continuing a
 construct begun on an earlier line, and so is a sound place to indent
 from; see `nael--indent-anchor'.
 
-The grammar deliberately does not model Lean's tactic vocabulary, so a
-sequence of tactics shows up as a chain of `app' nodes.  That is why
-`app' belongs here, even though its children are a function and its
-arguments in every other context.")
+The grammar does not enumerate Lean's tactic vocabulary, but it does
+model the shapes around a tactic, so a tactic block is a sequence of
+`tactic' nodes.  A `tactic' belongs here because its own arguments may
+include a nested block; `app' stays for the term-level case, even though
+its children are a function and its arguments in every other context.")
 
 (defconst nael--anchor-regexp
-  (rx bos (or "by" "do_block" "match" "where_decls" "where_struct") eos)
+  (rx bos (or "by" "calc" "decreasing_by" "do_block" "match"
+              "tactic_focus" "tactic_paren" "where_decls"
+              "where_struct")
+      eos)
   "Regular expression matching nodes that set an indentation base.
 
 Unlike the nodes of `nael--statement-parent-regexp', these do so even
@@ -774,7 +828,7 @@ part of the statement that `theorem' begins, and indents from there."
 
      ;; A command qualified by `set_option … in' or `open … in' keeps the
      ;; column of the qualifier rather than indenting under it.
-     ((parent-is ,nael--wrapper-regexp) parent-bol 0)
+     (nael--indent-wrapper-body-p parent-bol 0)
 
      ;; Below this point every rule reasons about the shape of the
      ;; parse tree, so stop here if that shape is not to be trusted.
@@ -786,11 +840,12 @@ part of the statement that `theorem' begins, and indents from there."
 
      ;; The `|' of a `match ... with', or of an `induction'/`cases'
      ;; tactic, aligns with the keyword that introduces it, whereas the
-     ;; equations of a `def' are indented below it.
-     ((n-p-gp ,(rx bos "match_alt" eos)
-              ,(rx bos (or "induction" "match") eos) nil)
+     ;; equations of a `def' are indented below it.  A tactic's
+     ;; alternatives are `tactic_alt' nodes under the `tactic' itself.
+     ((n-p-gp ,(rx bos (or "match_alt" "tactic_alt") eos)
+              ,(rx bos (or "match" "tactic") eos) nil)
       parent-bol 0)
-     ((n-p-gp nil ,(rx bos "match_alt" eos) nil)
+     ((n-p-gp nil ,(rx bos (or "match_alt" "tactic_alt") eos) nil)
       parent-bol nael-indent-offset)
 
      ;; Tactic blocks (`by') and monadic blocks (`do').  Both usually
